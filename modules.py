@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# 스탑워드 전처리
+# Stopword preprocessing
 import re
 import numpy as np
 import collections
-from collections import Counter  # Class별 개수 세기
+from collections import Counter  # Class Counting stars
 import os
 import nltk
 from keras.preprocessing import sequence
@@ -21,7 +21,7 @@ from sklearn import metrics
 
 
 def stop_word(product_names, stopword, new):
-    
+
     for name in product_names:
         for i in range(0,len(stopword)):
             k = re.sub(pattern=stopword[i] ,repl=' ', string=name)
@@ -31,7 +31,7 @@ def stop_word(product_names, stopword, new):
     return new
 
 
-# 복수단어 단수화
+# Plural word singularization
 
 def words_to_word(product_names, mapping_dict):
     keys_list = list(mapping_dict.keys())
@@ -48,9 +48,9 @@ def words_to_word(product_names, mapping_dict):
 
 
 # Data Cleansing
-# 1) 동일 품명 다른 HSCODE --> Count 수가 가장 큰 것으로 대체
+# 1) Same product name, different HSCODE --> Replaced with the largest number of Count
 def data_cleansing(hscode, product_names):
-    # 제품명 단어장 생성
+    # Create product name vocabulary
     product_names_dict = dict()
     limit_range = len(hscode)
     for i in range(0, limit_range):
@@ -63,7 +63,7 @@ def data_cleansing(hscode, product_names):
         else:
             name_index.append(i)
 
-    # 동일 품명인데 상이한 hscode가 있을 경우에는 count수가 가장 큰 것으로 대체
+# If there is a different hscode with the same product name, it is replaced with the largest count
     for name in list(set(product_names[0:limit_range])):
         hscode_index = list()
         hscode_index.extend(product_names_dict.get(name))
@@ -86,11 +86,11 @@ def data_cleansing(hscode, product_names):
     return hscode_result, product_names_result
 
 
-# 2) 실제 존재하지 않는 HSCODE를 가지는 데이터 및 상품명 공백 데이터 제거
+# 2) Remove data with HSCODE that does not exist and blank data for product name
 
 def delete_strange(hscode, product_names):
 
-    # 코드 이상한 것 제거
+# Remove the code weird
     strange = ['XX', '00', '99', '98']
 
     strange_remove = hscode
@@ -104,7 +104,7 @@ def delete_strange(hscode, product_names):
     hscode_strange = np.delete(hscode, strange_ind)
     product_names_strange = np.delete(product_names, strange_ind)
 
-    # 상품명에 공백 있는 데이터 제거
+    # Remove data with spaces in the product name
     blank_remove = product_names
     blank_ind = []
     for i in range(len(blank_remove)):
@@ -123,22 +123,22 @@ def sequence_processing(product_names, hscode, num_recs, word2index):
     i = 0
 
     for sentence, label in zip(product_names, hscode):
-        words = nltk.word_tokenize(sentence)  # 한문장씩 토큰화
+        words = nltk.word_tokenize(sentence)  # Tokenization one sentence at a time
         seqs = []
-        for word in words:  # ZINC, WASTE, SCRAP 순으로 뽑음
-            if word in word2index:  # 그 단어가 word2index에 있으면 seqs에 그 단어의 인덱스를 추가
-                seqs.append(word2index[word])  # word2index --> 문장이 인덱스가됨
+        for word in words:  # ZINC, WASTE, SCRAP Selected in order
+            if word in word2index:  # If the word is in word2index, add the index of that word to seqs
+                seqs.append(word2index[word])  # word2index --> sentence is indexed
             else:
-                seqs.append(word2index["UNK"])  # 그 단어가 없으면 UNK
+                seqs.append(word2index["UNK"])  # UNK without that word
         # print(seqs)
-        X[i] = seqs  # X[0] = [ZINC, WASTE, SCRAP] 에 해당하는 인덱스 번호  [10,  3000,   9503]
+        X[i] = seqs  # X[0] = [ZINC, WASTE, SCRAP] Index number corresponding to [10,  3000,   9503]
         y[i] = int(label)  # hs code
         i += 1
 
     return X, y
 
 
-# 원핫 인코딩
+# One-hot encoding
 
 def one_hot(y):
     y = y.astype(dtype='int64')
@@ -148,7 +148,7 @@ def one_hot(y):
     return one_hot_y
 
 
-# 오버샘플링
+# Oversampling
 def oversampling(hscode_unit, hscode_cleansing, product_names_cleansing):
     hscode_count = Counter(hscode_unit)
 
@@ -164,7 +164,7 @@ def oversampling(hscode_unit, hscode_cleansing, product_names_cleansing):
             copy_num.append(int(700 / (hscode_count[i] + 1)))
             under_count.append(i)
 
-    ## 복사하는 과정
+    ## Copying process
     for i in range(len(under_count)):
         index = []
         for a in range(len(hscode_cleansing)):
@@ -185,10 +185,10 @@ def oversampling(hscode_unit, hscode_cleansing, product_names_cleansing):
         hscode_cleansing.extend(copy_hscode)
         product_names_cleansing.extend(copy_pro_name)
 
-        # 확인용
+        # For confirmation
     hscode_unit_over = []
     for row in range(0, len(hscode_cleansing)):
-        hscode_unit_over.append(hscode_cleansing[row][0:6])  # oversampling으로 진행 할 경우 hscode_unit_over로 바꿔서 코드 진행 해야함
+        hscode_unit_over.append(hscode_cleansing[row][0:6])  # In case of oversampling, change to hscode_unit_over to proceed with code
 
     return hscode_unit_over
 
@@ -198,19 +198,19 @@ def oversampling(hscode_unit, hscode_cleansing, product_names_cleansing):
 
 # Recall
 def recall(y_target, y_pred):
-    # clip(t, clip_value_min, clip_value_max) : clip_value_min~clip_value_max 이외 가장자리를 깎아 낸다
+    # clip(t, clip_value_min, clip_value_max) : clip_value_min~clip_value_max Other edges are cut off
     # round : 반올림한다
-    y_target_yn = K.round(K.clip(y_target, 0, 1))  # 실제값을 0(Negative) 또는 1(Positive)로 설정한다
-    y_pred_yn = K.round(K.clip(y_pred, 0, 1))  # 예측값을 0(Negative) 또는 1(Positive)로 설정한다
+    y_target_yn = K.round(K.clip(y_target, 0, 1))  # Set the actual value to 0 (Negative) or 1 (Positive)
+    y_pred_yn = K.round(K.clip(y_pred, 0, 1))  # Set the predicted value to 0 (Negative) or 1 (Positive)
 
-    # True Positive는 실제 값과 예측 값이 모두 1(Positive)인 경우이다
+    # True positive is when both the actual and predicted values are 1 (positive).
     count_true_positive = K.sum(y_target_yn * y_pred_yn)
 
-    # (True Positive + False Negative) = 실제 값이 1(Positive) 전체
+    # (True Positive + False Negative) = Actual value is 1 (Positive) total
     count_true_positive_false_negative = K.sum(y_target_yn)
 
     # Recall =  (True Positive) / (True Positive + False Negative)
-    # K.epsilon()는 'divide by zero error' 예방차원에서 작은 수를 더한다
+    # K.epsilon()는 'divide by zero error' Add small numbers as a precaution
     recall = count_true_positive / (count_true_positive_false_negative + K.epsilon())
 
     # return a single tensor value
@@ -218,19 +218,19 @@ def recall(y_target, y_pred):
 
 # Precision
 def precision(y_target, y_pred):
-    # clip(t, clip_value_min, clip_value_max) : clip_value_min~clip_value_max 이외 가장자리를 깎아 낸다
-    # round : 반올림한다
-    y_pred_yn = K.round(K.clip(y_pred, 0, 1))  # 예측값을 0(Negative) 또는 1(Positive)로 설정한다
-    y_target_yn = K.round(K.clip(y_target, 0, 1))  # 실제값을 0(Negative) 또는 1(Positive)로 설정한다
+    # clip(t, clip_value_min, clip_value_max) : clip_value_min~clip_value_max Other edges are cut off
+    # round : Round
+    y_pred_yn = K.round(K.clip(y_pred, 0, 1))  # Set the predicted value to 0 (Negative) or 1 (Positive)
+    y_target_yn = K.round(K.clip(y_target, 0, 1))  # Set the actual value to 0 (Negative) or 1 (Positive)
 
-    # True Positive는 실제 값과 예측 값이 모두 1(Positive)인 경우이다
+    # True Positive Is when both the actual and predicted values are 1 (Positive).
     count_true_positive = K.sum(y_target_yn * y_pred_yn)
 
     # (True Positive + False Positive) = 예측 값이 1(Positive) 전체
     count_true_positive_false_positive = K.sum(y_pred_yn)
 
     # Precision = (True Positive) / (True Positive + False Positive)
-    # K.epsilon()는 'divide by zero error' 예방차원에서 작은 수를 더한다
+    # K.epsilon() Adds a small number to prevent'divide by zero error'
     precision = count_true_positive / (count_true_positive_false_positive + K.epsilon())
 
     # return a single tensor value
@@ -241,7 +241,7 @@ def precision(y_target, y_pred):
 def f1score(y_target, y_pred):
     _recall = recall(y_target, y_pred)
     _precision = precision(y_target, y_pred)
-    # K.epsilon()는 'divide by zero error' 예방차원에서 작은 수를 더한다
+    # K.epsilon() adds a small number to prevent'divide by zero error'
     _f1score = (2 * _recall * _precision) / (_recall + _precision + K.epsilon())
 
     # return a single tensor value
@@ -262,8 +262,8 @@ def topN_score(predict_proba, y_test):
     # # TOP  - 1 score
     # cnt = 0
     # for i in range(len(y_class)):
-    #     top_1_label = []  # 리스트 초기화 해줌
-    #     top_1_label = predict_proba[i].argsort()[::-1][0]  # 상위 3개 리스트로 넣어줌
+    #     top_1_label = []  # Initialize list
+    #     top_1_label = predict_proba[i].argsort()[::-1][0]  # Put it in the top 3 list
     #
     #     if y_class[i] in top_1_label:
     #         cnt += 1
@@ -272,8 +272,8 @@ def topN_score(predict_proba, y_test):
     # TOP  - 3 score
     cnt = 0
     for i in range(len(y_class)):
-        top_3_label = []  # 리스트 초기화 해줌
-        top_3_label = predict_proba[i].argsort()[::-1][0:3]  # 상위 3개 리스트로 넣어줌
+        top_3_label = []  # Initialize list
+        top_3_label = predict_proba[i].argsort()[::-1][0:3]  # Put it in the top 3 list
 
         if y_class[i] in top_3_label:
             cnt += 1
@@ -282,8 +282,8 @@ def topN_score(predict_proba, y_test):
     # TOP  - 5 score
     cnt = 0
     for i in range(len(y_class)):
-        top_5_label = []  # 리스트 초기화 해줌
-        top_5_label = predict_proba[i].argsort()[::-1][0:5]  # 상위 5개 리스트로 넣어줌
+        top_5_label = []  # # Initialize list
+        top_5_label = predict_proba[i].argsort()[::-1][0:5]  # Put it into the top 5 list
 
         if y_class[i] in top_5_label:
             cnt += 1

@@ -1,5 +1,5 @@
 
-#패키지 import
+# package import
 from keras.layers import Embedding, SpatialDropout1D, Conv1D, GlobalMaxPool1D, MaxPool1D, MaxPooling1D, GlobalMaxPooling1D, GlobalAveragePooling1D, AveragePooling1D
 from keras.models import Sequential
 from keras.layers import LSTM, Embedding, Dense, Flatten, Dropout, LeakyReLU, BatchNormalization, ReLU
@@ -16,14 +16,14 @@ import matplotlib.pyplot as plt
 import time
 import copy
 import nltk    # Tokenizer
-import warnings   # 경고메시지 제거
+import warnings   # Remove warning message
 warnings.filterwarnings('ignore')
 
-import collections   # Class별 개수 세기
-import re   # 정규표현식
-from gensim.models import word2vec  # word2vec 
+import collections   # Class Counting stars
+import re   # Regular expression
+from gensim.models import word2vec  # word2vec
 from keras.preprocessing import sequence
-import sklearn.preprocessing   # sklearn 데이터처리
+import sklearn.preprocessing   # sklearn Data processing
 from sklearn.model_selection import train_test_split
 from keras import backend as K
 
@@ -32,7 +32,7 @@ sess = tf.Session(graph=tf.get_default_graph(), config=config)
 K.set_session(sess)
 
 
-# 정의한 모듈 불러오기
+# Load defined module
 from modules import stop_word, words_to_word, data_cleansing, delete_strange, sequence_processing, one_hot, topN_score
 
 
@@ -54,9 +54,9 @@ hscode = np.array(hscode_list)
 
 
 
-#StopWord 전처리
-stopword = [' AND ', ' OF ',' IN ',' BRAND ', ' WITH ',' NO ',' HS ', ' CODE ', 
-        ' TO ',' CODE ',' CO ', ' PO ', ' AS ', ' LTD ', ' AT ', ' ONLY ', 
+#StopWord Pretreatment
+stopword = [' AND ', ' OF ',' IN ',' BRAND ', ' WITH ',' NO ',' HS ', ' CODE ',
+        ' TO ',' CODE ',' CO ', ' PO ', ' AS ', ' LTD ', ' AT ', ' ONLY ',
         ' BY ', ' IS ', ' FROM ', ' TH E', ' THAT ',' BUT ', ' AT ',' PER ',
         ' FOR ',' TEL ',' INC ',' ON ',' OR ',
         ' WILL ',' BE ',' TOTAL ',' EXP ',' OUT ',' ALL ',' REF ']
@@ -65,8 +65,8 @@ new= []
 product_names = stop_word(product_names, stopword, new)
 
 
-#복수 단어 단수화 처리  Ex) Apples -> Apple
-# 바꿀 단어들
+# Multi-word singularization processing  Ex) Apples -> Apple
+# Words to replace
 mapping_dict= {"ZINCS": "ZINC","MECEDEZ": "MERCEDES","MERCEDEZ": "MERCEDES", "SPUNLACED": "SPUNLACE", "TYRE" : "TIRE",
         "MEN" : "MAN", "WOMEN" : "WOMAN", "PALLETS" : "PALLET", "CARTONS" : "CARTON","BAGS" : "BAG","PACKAGES" : "PACKAGE",
         "DRUMS" : "DRUM","PIECES" : "PIECE","CONTAINERS" : "CONTAINER","UNITS" : "UNIT","CASES" : "CASE", "DETAILS" : "DETAIL",
@@ -86,27 +86,27 @@ mapping_dict= {"ZINCS": "ZINC","MECEDEZ": "MERCEDES","MERCEDEZ": "MERCEDES", "SP
 
 product_names = words_to_word(product_names, mapping_dict)
 
-#Data Cleansing
+# Data Cleansing
 
-# 1) 동일 품명 다른 HSCODE --> Count 수가 가장 큰 것으로 대체
+# 1) Same product name different HSCODE --> Count Replaced with the largest number
 
 hscode_cleansing, product_names_cleansing = data_cleansing(hscode, product_names)
 
-#2) 실제 존재하지 않는 HSCODE를 가지는 데이터 및 상품명 공백 데이터 제거
+#2) Removing data with HSCODE that does not exist and blank data for product name
 
 hscode_cleansing, product_names_cleansing = delete_strange(hscode_cleansing, product_names_cleansing)
 
 
-#6자리 중 대분류 or 중분류 추출
+#6 Extract large or medium classification among 6 digits
 
 hscode_unit = list()
 for row in range(0, len(hscode_cleansing)):
     hscode_unit.append(int(hscode_cleansing[row][0:4]))
 
 
-# 문장길이, 중복없는 단어개수, 문장 수
+# Sentence length, number of words without duplicates, number of sentences
 nltk.download('punkt')
-temp=list()   # 문장 길이 알아보기위해
+temp=list()   # To find out the length of the sentence
 
 maxlen = 0
 word_freqs = collections.Counter()
@@ -120,53 +120,53 @@ for sentence in product_names_cleansing:
         word_freqs[word] += 1  # frequency for each word
     num_recs += 1 # total number of records
 
-print('가장 긴 상품명 길이: {}, 중복없는 단어 개수: {}, 상품명 Data 수: {}'.format(maxlen, len(word_freqs), num_recs))
+print('Longest trade name length: {}, Word count without duplicates: {}, Product name Data number: {}'.format(maxlen, len(word_freqs), num_recs))
 
 
 # Word2Vec Weight Matrix
 
-#이중 리스트에 split
-# Word2vec에 알맞은 형태로 넣어주기 위해
+# On the double list split
+# Word2vecTo put it in the right shape
 
 product_names_word2vec= list()
 for i in product_names_cleansing:
     a= i.split(" ")
     product_names_word2vec.append(a)
 
-embedding_size = 300    #최대 40000개의 단어를 사용하여 사전구성
-min_count = 1    # 최소 n번 이상 나온 단어만 사용
-max_sentence_length= 38   #문장의 최대길이를 50
+embedding_size = 300    # Pre-composed using up to 40000 words
+min_count = 1    # Use only words that appear at least n times
+max_sentence_length= 38   # Maximum sentence length 50
 
 
 # Word2Vec Embedding
 w2v_model = word2vec.Word2Vec(product_names_word2vec, size=embedding_size, min_count= min_count)
 print(w2v_model)
 
-# 유사단어
+# Similar words
 # w2v_model.wv.most_similar("BANANA")
 
 
-# word2vec 벡터값
+# word2vec Vector value
 w2v_weight = w2v_model.wv.vectors
 w2v_weight.shape
 
 
-# 단어 {Key:Value} Dictionary 처리 및 기존에 없는 단어가 들어올 때를 위한 처리
-index2word = {i+2: w for i, w in enumerate(w2v_model.wv.index2word)} 
+# Word {Key:Value} Dictionary processing and processing when an existing word is entered
+index2word = {i+2: w for i, w in enumerate(w2v_model.wv.index2word)}
 index2word[0] = 'PAD'
 index2word[1] = 'UNK'
 word2index = {w: i for i, w in index2word.items() }
 vocab_size = len(word_freqs) + 2
 
 
-# 모든 문장 길이 맞춰주기 (Zero Padding)
+# Match the length of all sentences (Zero Padding)
 X, y = sequence_processing(product_names_cleansing, hscode_unit, num_recs, word2index)
 X = sequence.pad_sequences(X, maxlen=max_sentence_length, padding='post')
 
 # X.shape, y.shape
 
 
-# HSCODE 원핫 인코딩
+# HSCODE One-hot encoding
 one_hot_Y = one_hot(y)
 
 # Train / Test Split
@@ -200,14 +200,14 @@ model.summary()
 BATCH_SIZE = 700
 NUM_EPOCHS = 20
 
-# 모델 Training
+# Model Training
 hist = model.fit(x_train, y_train, batch_size=BATCH_SIZE, epochs=NUM_EPOCHS, validation_split=0.1, shuffle=True)
 
-# 모델 Evaluation
+# Model Evaluation
 loss_test, acc_test, precision, recall, f1score = model.evaluate(x_test, y_test, batch_size=BATCH_SIZE)
 print('loss: {:.3f}, accuracy: {:.3f}, precision: {:.3f}, recall: {:.3f}, f1score: {:.3f}'.format(loss_test, acc_test, precision, recall, f1score))
 
-# 학습 그래프
+# Learning graph
 fig, ax = plt.subplots(1,2, figsize=(18,6))
 
 ax[0].plot(hist.history['loss'], 'b',label='Train loss')
@@ -231,8 +231,8 @@ predict_proba = model.model.predict(x_test)
 topN_score(predict_proba, y_test) ;
 
 
-# 새로운 INPUT Data 입력
-new = np.empty((1, ), dtype= list)   # (1, ~) 벡터 만들기
+# New input data input
+new = np.empty((1, ), dtype= list)   # (1, ~) Create vector
 
 new_input = 'BARVO NINE HUNDRED '
 words = nltk.word_tokenize(new_input)
@@ -250,6 +250,6 @@ class_predict = model.model.predict(new_input)
 class_index = class_predict[0].argsort()[::-1]
 
 
-# 확률 Top 5
+# percentage Top 5
 for i in class_index[0:5]:
   print(i,  ' : ', class_predict[0][i])
