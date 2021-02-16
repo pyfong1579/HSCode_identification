@@ -1,7 +1,7 @@
 ## HS Code Identification Model
 
 
-### HS CODE: 'Harmonized Commodity Description and Coding System' (무역 관세코드)
+### HS CODE: 'Harmonized Commodity Description and Coding System' (Trade tariff code)
 
 - HS Code is a international product naming System  
 - Facilitate the collection of trade-related statistics and tariffs in International Trade  
